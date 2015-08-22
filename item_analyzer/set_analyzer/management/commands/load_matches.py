@@ -2,7 +2,9 @@ from django.core.management.base import BaseCommand
 from set_analyzer.models import Match
 from set_analyzer.api_interface import *
 
-import json
+import json, os
+
+from django.conf import settings
 
 class Command(BaseCommand):
     args = '<foo bar ...>'
@@ -13,12 +15,15 @@ class Command(BaseCommand):
 
         i = 0
 
-        with open(filename, 'r') as mfile:
-            while(w.can_make_request() and i<num):
-                match_id = int(mfile.readline())
-                match = Match.from_dict(w.get_match(match_id, include_timeline=True))
-                match.save()
-                i+=1
+        abs_path = os.path.join(settings.BASE_DIR, 'item_analyzer', 'dataset', filename)
+
+        with open(abs_path, 'r') as mfile:
+            matches = json.load(mfile)
+            for match_id in matches:
+                if(w.can_make_request() and i<num):
+                    match = Match.from_dict(w.get_match(match_id, include_timeline=True))
+                    match.save()
+                    i+=1
 
     def handle(self, *args, **options):
         w = RiotWatcher('7e6e61a1-243a-4739-a49d-78ec5a71ad71')

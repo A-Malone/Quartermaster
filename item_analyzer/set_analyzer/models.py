@@ -54,7 +54,8 @@ class Item(Document):
             item_id = int(data['id']),
             name = data['name'],
             gold = data['gold'],
-            stats = data['stats']
+            stats = data['stats'],
+            version = data['version']
         )
 
 #----Game Document
@@ -72,7 +73,6 @@ class ItemEvent(EmbeddedDocument):
             event_type = data['eventType'],
             payload = data
         )
-        item_event.save()
         return item_event
 
 class ParticipantDataFrame(EmbeddedDocument):
@@ -82,6 +82,7 @@ class ParticipantDataFrame(EmbeddedDocument):
     level = IntField()
     minions_killed = IntField()
     xp = IntField()
+    team_score = IntField()
 
     @classmethod
     def from_dict(cls, data):
@@ -93,7 +94,6 @@ class ParticipantDataFrame(EmbeddedDocument):
             xp=data['xp'],
             team_score=data['teamScore']
         )
-        pdf.save()
         return pdf
 
 class Participant(EmbeddedDocument):
@@ -108,21 +108,22 @@ class Participant(EmbeddedDocument):
         part =  Participant(
             participant_id = data['participantId'],
             team_id = data['teamId'],
-            champion =  Champion.objects(champion_id=data['championId']).get()
+            champion =  Champion.objects(
+                champion_id=int(data['championId'])
+            ).get()
         )
-        part.save()
         return part
 
 class Team(EmbeddedDocument):
+    team_id = IntField()
     won = BooleanField(required=True)
     @classmethod
     def from_dict(cls, data):
         team = Team(
+            team_id = data['teamId'],
             won = data['winner']
         )
-        team.save()
         return team
-
 
 class Match(Document):
     match_id = IntField()
@@ -140,31 +141,32 @@ class Match(Document):
         #Parse teams
         for team_dict in data['teams']:
             team = Team.from_dict(team_dict)
-            match.teams[team.team_id] = team
+            match.teams[str(team.team_id)] = team
         match.save()
 
         #Parse participants
         for participant_dict in data['participants']:
             participant = Participant.from_dict(participant_dict)
-            match.participants[participant.participant_id] = participant
+            match.participants[str(participant.participant_id)] = participant
         match.save()
 
         #Parse frame events
-        for frame_dict in data['frames']:
+        for frame_dict in data['timeline']['frames']:
             ts = int(frame_dict['timestamp'])
-            for pid, participant_frame_dict in frame_dict['participantFrames'].items():
-                pdf = ParticipantDataFrame.from_dict(participant_frame_dict)
-                pdf.timestamp = ts
-                pdf.save()
-                participant = match.participants[participant_id]
-                participant.frame_data.append(pdf)
-                participant.save()
+            if('participantFrames' in frame_dict):
+                for pid, participant_frame_dict in frame_dict['participantFrames'].items():
+                    pdf = ParticipantDataFrame.from_dict(participant_frame_dict)
+                    pdf.timestamp = ts
+                    participant = match.participants[pid]
+                    participant.frame_data.append(pdf)
+            if('events' in frame_dict):
+                for event_dict in  frame_dict['events']:
+                    if(event_dict['eventType'].startswith("ITEM")):
+                        if(int(event_dict['participantId'])):
+                            item_event = ItemEvent.from_dict(event_dict)
+                            participant = match.participants[str(event_dict['participantId'])]
+                            participant.item_events.append(item_event)
+        match.save()
 
-            for event_dict in  frame_dict['events']:
-                if(event_dict['evenType'].startswith("ITEM")):
-                    item_event = ItemEvent.from_dict(event_dict)
-                    participant = match.participants[event_dict['participantId']]
-                    participant.item_events.append(item_event)
-                    participant.save()
 
         return match

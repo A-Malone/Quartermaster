@@ -15,7 +15,7 @@ class Command(BaseCommand):
             static_item_list_stats = w.static_get_item_list(item_list_data='stats', version=version)
             for item_id, item_dict in static_item_list_gold['data'].items():
                 item_dict.update(static_item_list_stats['data'][item_id])
-                item_dict['version'] = version 
+                item_dict['version'] = version
                 item = Item.from_dict(item_dict)
                 item.save()
 
