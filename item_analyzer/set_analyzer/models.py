@@ -12,7 +12,23 @@ from mongoengine import ReferenceField, ListField, DictField, EmbeddedDocumentFi
 #----------------------------------------
 class Champion(Document):
     champion_id = IntField()
-    champion_name = StringField(max_length=50)
+    name = StringField(max_length=50)
+
+    @classmethod
+    def from_dict(cls, data):
+        """ Champions should be unique, so check to see if one exists already """
+
+        champ = Champion.objects(
+            champion_id = int(data['id'])
+        ).first()
+
+        if(champ):
+            return champ
+
+        return Champion(
+            champion_id = int(data['id']),
+            name = data['name']
+        )
 
 #----Item Document
 #----------------------------------------
@@ -44,6 +60,6 @@ class Team(EmbeddedDocument):
     won = BooleanField(required=True)
     players = ListField(EmbeddedDocumentField(Participant))
 
-class Game(Document):
+class Match(Document):
     match_id = IntField()
     teams = ListField(EmbeddedDocumentField(Team))
