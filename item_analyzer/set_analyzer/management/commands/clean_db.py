@@ -15,7 +15,7 @@ class Command(BaseCommand):
         if(user_list):
             to_clean = [str_to_cls(x) for x in user_list]
         else:
-            to_clean = [Champion, Item, Participant, Match, ItemPurchaseEvent, ParticipantDataFrame, Team]
+            to_clean = [Champion, Item, Match]
         for cls in to_clean:
             print("Deleting all records for class: {}".format(cls.__name__))
             cls.objects().all().delete()
