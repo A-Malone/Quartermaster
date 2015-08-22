@@ -12,12 +12,12 @@ from mongoengine import ReferenceField, ListField, DictField, EmbeddedDocumentFi
 #----------------------------------------
 class Champion(Document):
     champion_id = IntField()
-    name = StringField(max_length=50)
+    name = StringField(max_length=100)
 
     @classmethod
     def from_dict(cls, data):
-        """ Champions should be unique, so check to see if one exists already """
 
+        # Champions should be unique, so check to see if one exists already
         champ = Champion.objects(
             champion_id = int(data['id'])
         ).first()
@@ -34,7 +34,26 @@ class Champion(Document):
 #----------------------------------------
 class Item(Document):
     item_id = IntField()
-    item_name = StringField(max_length=50)
+    name = StringField(max_length=100)
+    gold = DictField()
+    stats = DictField()
+
+    @classmethod
+    def from_dict(cls, data):
+        # Items should be unique, so check to see if one exists already
+        item = Item.objects(
+            item_id = int(data['id'])
+        ).first()
+
+        if(item):
+            return item
+
+        return Item(
+            item_id = int(data['id']),
+            name = data['name'],
+            gold = data['gold'],
+            stats = data['stats']
+        )
 
 #----Game Document
 #----------------------------------------

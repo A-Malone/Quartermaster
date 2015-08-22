@@ -14,7 +14,6 @@ class Command(BaseCommand):
             champion = Champion.from_dict(static_champ_list['data'][cname])
             champion.save()
 
-
     def handle(self, *args, **options):
         w = RiotWatcher('7e6e61a1-243a-4739-a49d-78ec5a71ad71')
         self._load_champions(w)
