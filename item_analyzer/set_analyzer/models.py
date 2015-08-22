@@ -39,6 +39,9 @@ class Item(Document):
     gold = DictField()
     stats = DictField()
 
+    build_from = ListField(IntField())
+    build_into = ListField(IntField())
+
     @classmethod
     def from_dict(cls, data):
         # Items should be unique, so check to see if one exists already
@@ -55,7 +58,9 @@ class Item(Document):
             name = data['name'],
             gold = data['gold'],
             stats = data['stats'],
-            version = data['version']
+            version = data['version'],
+            build_from = data.get('from', []),
+            build_into = data.get('into', [])
         )
 
 #----Game Document
@@ -102,6 +107,13 @@ class Participant(EmbeddedDocument):
     champion = ReferenceField(Champion)
     frame_data = ListField(EmbeddedDocumentField(ParticipantDataFrame))
     item_events = ListField(EmbeddedDocumentField(ItemEvent))
+    final_build = ListField(IntField())
+
+    #Model stats
+    kills = IntField()
+    deaths = IntField()
+    assists = IntField()
+    gold_earned = IntField()
 
     @classmethod
     def from_dict(cls, data):
@@ -109,8 +121,14 @@ class Participant(EmbeddedDocument):
             participant_id = data['participantId'],
             team_id = data['teamId'],
             champion =  Champion.objects(
-                champion_id=int(data['championId'])
-            ).get()
+                champion_id=int(data['championId']
+                )
+            ).get(),
+            kills = data['stats']['kills'],
+            deaths = data['stats']['deaths'],
+            assists = data['stats']['assists'],
+            gold_earned = data['stats']['goldEarned'],
+            final_build = [data['stats'].get("item{}".format(x), None) for x in range(7)]
         )
         return part
 
@@ -128,6 +146,7 @@ class Team(EmbeddedDocument):
 class Match(Document):
     match_id = IntField()
     version = StringField(max_length=50)
+    duration = IntField()
 
     teams = MapField(field=EmbeddedDocumentField(Team))
     participants = MapField(field=EmbeddedDocumentField(Participant))
@@ -136,6 +155,8 @@ class Match(Document):
     def from_dict(cls, data):
         match = Match(
             match_id = int(data['matchId']),
+            duration = data['matchDuration'],
+            version = data['matchVersion']
         )
 
         #Parse teams
