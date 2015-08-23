@@ -128,9 +128,12 @@ class Participant(EmbeddedDocument):
             deaths = data['stats']['deaths'],
             assists = data['stats']['assists'],
             gold_earned = data['stats']['goldEarned'],
-            final_build = [data['stats'].get("item{}".format(x), None) for x in range(7)]
+            final_build = [data['stats'].get("item{}".format(x), 0) for x in range(7)]
         )
         return part
+
+    def kda(self):
+        return (self.kills + self.assists)/float(self.deaths if self.deaths else 1)
 
 class Team(EmbeddedDocument):
     team_id = IntField()
