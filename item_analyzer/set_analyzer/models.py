@@ -1,7 +1,5 @@
 from django.db import models
 
-#SQLite Models
-
 
 #Mongo Models
 from mongoengine import Document, EmbeddedDocument

@@ -1,7 +1,8 @@
 import sklearn
 from sklearn import tree
+from sklearn import linear_model
 from sklearn import cross_validation, preprocessing
-from sklearn.metrics import classification_report, r2_score
+from sklearn.metrics import r2_score, explained_variance_score, mean_absolute_error, mean_squared_error, median_absolute_error
 from sklearn.externals import joblib
 
 from set_analyzer.models import *
@@ -10,7 +11,7 @@ import numpy as np
 
 from django.conf import settings
 
-import os
+import os, pickle
 
 #IDEA
 #Machine learning model to make the data smooth and continuous
@@ -24,12 +25,14 @@ class ItemSetModel(object):
     clf = None
 
     MODEL_PATH = os.path.join(settings.BASE_DIR, 'set_analyzer', 'analysis', 'models')
+    CACHE_FILE = os.path.join(MODEL_PATH, 'model_cache.cache')
 
     def __init__(self):
         super(ItemSetModel, self).__init__()
-        self.clf = tree.DecisionTreeRegressor()
+        #self.clf = tree.DecisionTreeRegressor()
+        self.clf = linear_model.Lasso(0.1)
 
-    def get_data_sets(self, **kwargs):
+    def get_data_sets(self, cache=False, **kwargs):
         """
         Data Schema:
             Input:
@@ -118,11 +121,21 @@ class ItemSetModel(object):
 
                 row_num+=1
 
+        if(cache):
+            print('Caching data...')
+            self.cache_data((input_data, output_data))
+
         return (input_data, output_data)
 
-    def train(self, train_ratio=1, **kwargs):
-        print("Assembling data...")
-        X, Y = self.get_data_sets(**kwargs)
+    def cache_data(self, data):
+        with open(self.CACHE_FILE, 'wb') as f:
+            pickle.dump(data, f)
+
+    def get_cached_data(self):
+        with open(self.CACHE_FILE, 'rb') as f:
+            return pickle.load(f)
+
+    def train(self, X, Y, train_ratio=1, **kwargs):
 
         print("Training model...")
         if(train_ratio==1):
@@ -157,10 +170,11 @@ def k_fold_evaluate(clf, X, y, folds):
     this_scores = cross_validation.cross_val_score(self.model, X, y, n_jobs=-1, cv=folds)
     print("k_folding results: {}\n".format(this_scores))
 
-def evaluate_fit(clf, X, y):
+def evaluate_fit(clf, X, Y):
     predicted_data = clf.predict(X)
-    R2 = clf.score(X, y)
-    print("Model R squared: {}".format(R2))
+    print("Model R squared: {}".format(r2_score(Y, predicted_data)))
+    print("Model explained_variance_score: {}".format(explained_variance_score(Y, predicted_data)))
+    print("Model mean_squared_error: {}".format(mean_squared_error(Y, predicted_data)))
 
 def chi_squared(m, y, v):
     """My own R^2 check"""
