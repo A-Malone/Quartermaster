@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand
 from set_analyzer.models import Match
 from set_analyzer.api_interface import *
 
-import json, os, time
+import json, os, time, pickle
 
 from django.conf import settings
 
@@ -16,6 +16,7 @@ class Command(BaseCommand):
         i = 0
 
         abs_path = os.path.join(settings.BASE_DIR, 'item_analyzer', 'dataset', filename)
+        cache_dir = os.path.join(settings.BASE_DIR, 'item_analyzer', 'dataset', 'cache')
 
         with open(abs_path, 'r') as mfile:
             matches = json.load(mfile)
@@ -30,20 +31,33 @@ class Command(BaseCommand):
                         if(i == num):
                             return
                         try:
-                            match = Match.from_dict(w.get_match(match_id, include_timeline=True))
+                            match_dict = w.get_match(match_id, include_timeline=True)
+                            match = Match.from_dict(match_dict)
+                            with open(os.path.join(cache_dir, "{}.pkl".format(match_id)), 'wb') as f:
+                                pickle.dump(match_dict, f)
                             i+=1
                             break
                         except LoLException as le:
-                            print("Too many requests, sleeping for 20s")
-                            time.sleep(10)
+                            print('League says: {}'.format(le.error))
+                            print(le.headers)
+                            time.sleep(2)
                     else:
-                        print("Too many requests, sleeping for 10s")
+                        print('Too many queries!')
+                        pass
 
-                    time.sleep(10)
+                time.sleep(1)
 
 
     def handle(self, *args, **options):
-        w = RiotWatcher('7e6e61a1-243a-4739-a49d-78ec5a71ad71')
+        api_path = os.path.join(settings.BASE_DIR, 'item_analyzer', 'APIkey.json')
+        key = ''
+
+        with open(api_path, 'r') as f:
+            key = json.load(f)['key']
+
+        print("Using API key: {}".format(key))
+
+        w = RiotWatcher(key)
         if(len(args)==1):
             self._load_matches(w, args[0])
         elif(len(args)==2):

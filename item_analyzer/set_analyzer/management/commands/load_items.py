@@ -2,6 +2,8 @@ from django.core.management.base import BaseCommand
 from set_analyzer.models import Item
 from set_analyzer.api_interface import *
 
+from django.conf import settings
+
 import json
 
 class Command(BaseCommand):
@@ -18,7 +20,13 @@ class Command(BaseCommand):
                 item.save()
 
     def handle(self, *args, **options):
-        w = RiotWatcher('7e6e61a1-243a-4739-a49d-78ec5a71ad71')
+        api_path = os.path.join(settings.BASE_DIR, 'item_analyzer', 'APIkey.json')
+        key = ''
+
+        with open(api_path, 'r') as f:
+            key = json.load(f)['key']
+
+        w = RiotWatcher(key)
         self._load_items(w)
 
 def parse_items(items):

@@ -1,9 +1,18 @@
 import sklearn
-from sklearn import tree
-from sklearn import linear_model
 from sklearn import cross_validation, preprocessing
 from sklearn.metrics import r2_score, explained_variance_score, mean_absolute_error, mean_squared_error, median_absolute_error
 from sklearn.externals import joblib
+from sklearn.pipeline import Pipeline
+
+#Regressors
+from sklearn.ensemble.forest import RandomForestRegressor
+from sklearn.linear_model import Lasso, ElasticNetCV
+from sklearn.linear_model.ridge import Ridge
+from sklearn.kernel_ridge import KernelRidge
+from sklearn.linear_model.stochastic_gradient import SGDRegressor
+from sklearn.svm.classes import SVR
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.grid_search import GridSearchCV
 
 from set_analyzer.models import *
 
@@ -29,8 +38,12 @@ class ItemSetModel(object):
 
     def __init__(self):
         super(ItemSetModel, self).__init__()
-        #self.clf = tree.DecisionTreeRegressor()
-        self.clf = linear_model.Lasso(0.1)
+        #self.clf = DecisionTreeRegressor()
+        #self.clf = Lasso(0.1)
+        #self.clf = SVR(kernel='rbf')
+        #self.clf = ElasticNetCV()
+        self.clf = RandomForestRegressor(max_depth=7, n_estimators=30)
+
 
     def get_data_sets(self, cache=False, **kwargs):
         """
@@ -53,10 +66,9 @@ class ItemSetModel(object):
 
         #Presize data
         features = 18
-        outputs = 1
         num_participants = len(matches)*10
         input_data = np.zeros((num_participants, features))
-        output_data = np.zeros((num_participants, outputs))
+        output_data = np.zeros(num_participants)
 
         row_num = 0
 
@@ -115,9 +127,9 @@ class ItemSetModel(object):
                 #Score
                 #   Assume that average gold/sec is ~8
                 #   Assume that average kda is ~2.6
-                #   Have a game win worth 1.5 times score
-                score = (participant.kda()*3 + participant.gold_earned/match.duration) * (1.5 if match.teams[str(participant.team_id)].won else 1.0)
-                output_data[row_num][0] = score
+                #   Have a game win worth some bonus
+                score = participant.kda()*3 + participant.gold_earned/match.duration +  (4 if match.teams[str(participant.team_id)].won else 0)
+                output_data[row_num] = score
 
                 row_num+=1
 
@@ -139,13 +151,15 @@ class ItemSetModel(object):
 
         print("Training model...")
         if(train_ratio==1):
+            print("Using {} rows".format(len(X)))
             self.clf.fit(X,Y)
         else:
             n = len(X)
             tn = int(n*train_ratio)
-            self.clf.fit(X[:tn,:],Y[:tn,:])
+            print("Using {} rows".format(tn))
+            self.clf.fit(X[:tn,:],Y[:tn])
             print("Evaluating model...")
-            evaluate_fit(self.clf, X[tn:,:],Y[tn:,:])
+            evaluate_fit(self.clf, X[tn:,:],Y[tn:])
 
     def predict(self, X):
         return self.clf.predict(X)

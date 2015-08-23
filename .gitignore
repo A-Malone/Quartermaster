@@ -28,6 +28,7 @@ var/
 dataset/
 *.sqlite3
 models/
+APIkey.json
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
