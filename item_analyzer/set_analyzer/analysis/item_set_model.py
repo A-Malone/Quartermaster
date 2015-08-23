@@ -42,7 +42,7 @@ class ItemSetModel(object):
         #self.clf = Lasso(0.1)
         #self.clf = SVR(kernel='rbf')
         #self.clf = ElasticNetCV()
-        self.clf = RandomForestRegressor(max_depth=7, n_estimators=30)
+        self.clf = RandomForestRegressor(max_depth=7, n_estimators=10)
 
 
     def get_data_sets(self, cache=False, **kwargs):
@@ -171,11 +171,14 @@ class ItemSetModel(object):
 
     #LOAD AND SAVE
     def save(self, filename):
-        path = os.path.join(self.MODEL_PATH, filename)
+        dirname = os.path.join(self.MODEL_PATH, filename)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+        path = os.path.join(dirname, "{}.pkl".format(filename))
         joblib.dump(self.clf, path)
 
     def load(self, filename):
-        path = os.path.join(self.MODEL_PATH, filename)
+        path = os.path.join(self.MODEL_PATH, filename, "{}.pkl".format(filename))
         self.clf = joblib.load(path)
 
 #MODEL EVAUATION
