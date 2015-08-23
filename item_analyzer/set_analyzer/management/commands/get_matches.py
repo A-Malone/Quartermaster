@@ -39,7 +39,6 @@ class Command(BaseCommand):
                             break
                         except LoLException as le:
                             print('League says: {}'.format(le.error))
-                            print(le.headers)
                             time.sleep(2)
                     else:
                         print('Too many queries!')
