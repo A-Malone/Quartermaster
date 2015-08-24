@@ -9,8 +9,12 @@ from mongoengine import ReferenceField, ListField, DictField, EmbeddedDocumentFi
 #----Champion Document
 #----------------------------------------
 class Champion(Document):
+    CLASSES = ['Assasin', 'Fighter', 'Mage', 'Marksman', 'Support', 'Tank']
+
     champion_id = IntField()
     name = StringField(max_length=100)
+    tags = ListField(StringField(max_length=30))
+    class_data = ListField(IntField())
 
     @classmethod
     def from_dict(cls, data):
@@ -20,13 +24,15 @@ class Champion(Document):
             champion_id = int(data['id'])
         ).first()
 
-        if(champ):
-            return champ
+        #Allows for upating of schema with breaking links
+        if(not champ):
+            champ = Champion(champion_id = int(data['id']))
 
-        return Champion(
-            champion_id = int(data['id']),
-            name = data['name']
-        )
+        champ.tags = data['tags']
+        champ.name = data['name']
+        champ.class_data = [(1 if CLASS in champ.tags else 0) for CLASS in Champion.CLASSES]
+        champ.save()
+        return champ
 
 #----Item Document
 #----------------------------------------

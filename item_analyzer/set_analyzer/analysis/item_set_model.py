@@ -45,16 +45,17 @@ class ItemSetModel(object):
         self.clf = RandomForestRegressor(max_depth=7, n_estimators=10)
 
 
-    def get_data_sets(self, cache=False, **kwargs):
+    def get_data_sets(self, num_matches, cache=False, **kwargs):
         """
         Data Schema:
             Input:
                 1    My champion ID
-                5    [Other team's champion ID's]
+                6    My Champion's class info
+                6    [Other team's cumulative class info]
                 7    [7 Final Items]
                 5    [first 5 items purchased]
                 ________________________________________
-                18 features
+                25 features
 
             Output:
                 Score = A(Gold/time) + B(xp/time) + C(win)
@@ -62,11 +63,10 @@ class ItemSetModel(object):
                 1 Output
 
         """
-        matches = Match.objects.all(**kwargs)
 
         #Presize data
-        features = 18
-        num_participants = len(matches)*10
+        features = 25
+        num_participants = num_matches*10
         input_data = np.zeros((num_participants, features))
         output_data = np.zeros(num_participants)
 
@@ -77,37 +77,37 @@ class ItemSetModel(object):
         item_purchased = lambda x: x.event_type == "ITEM_PURCHASED"
 
         #Iterate over every match in the database
-        for match in matches:
+        for match in Match.objects(**kwargs)[:num_matches]:
 
-            #Prefetch users and teams
+            #Prepare users and teams
             team_map = {}
-            team_data = np.zeros((2,5))
+            team_data = np.zeros((2,6))     #Store the sum of each team's tags
             count = 0
             for tag in match.teams:
                 team_map[int(tag)] = count
                 count+=1
 
-            team_indices = dict.fromkeys(team_map, 0)
-
-            for ind,p in enumerate(match.participants.values()):
-                team_data[team_map[p.team_id]][team_indices[p.team_id]] = get_champ_id(p)
-                team_indices[p.team_id] += 1
+            #Prepare champion class data
+            for p in match.participants.values():
+                for tag in p.champion.tags:
+                    team_data[team_map[p.team_id], :] += np.array(p.champion.class_data)
 
             #Iterate over every user in the match
             for pid, participant in match.participants.items():
                 col_num = 0
 
-                #My ID
+                #My Champion's info
                 input_data[row_num][col_num] = get_champ_id(participant)
                 col_num+=1
+                input_data[row_num][col_num:col_num+6] = np.array(participant.champion.class_data)
+                col_num+=6
 
-                #Other Team's champion ID's
+                #Other Team's champion attributes
                 if(team_map[participant.team_id] == 0):
-                    input_data[row_num][col_num:col_num+5] = team_data[1,:]
+                    input_data[row_num][col_num:col_num+6] = team_data[1,:]
                 else:
-                    input_data[row_num][col_num:col_num+5] = team_data[0,:]
-
-                col_num+=5
+                    input_data[row_num][col_num:col_num+6] = team_data[0,:]
+                col_num+=6
 
                 #My items
                 for item_id in participant.final_build:
@@ -122,7 +122,6 @@ class ItemSetModel(object):
                     input_data[row_num][col_num] = item_purchase.payload['itemId']
                     col_num += 1
                     count += 1
-
 
                 #Score
                 #   Assume that average gold/sec is ~8
@@ -143,9 +142,9 @@ class ItemSetModel(object):
         with open(self.CACHE_FILE, 'wb') as f:
             pickle.dump(data, f)
 
-    def get_cached_data(self):
+    def get_cached_data(self, num_rows):
         with open(self.CACHE_FILE, 'rb') as f:
-            return pickle.load(f)
+            return pickle.load(f)[:num_rows]
 
     def train(self, X, Y, train_ratio=1, **kwargs):
 
@@ -172,8 +171,14 @@ class ItemSetModel(object):
     #LOAD AND SAVE
     def save(self, filename):
         dirname = os.path.join(self.MODEL_PATH, filename)
-        if not os.path.exists(dirname):
+        if(not os.path.exists(dirname)):
             os.makedirs(dirname)
+        else:       #Empty folder
+            for file in os.listdir(dirname):
+                file_path = os.path.join(dirname, file)
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+
         path = os.path.join(dirname, "{}.pkl".format(filename))
         joblib.dump(self.clf, path)
 

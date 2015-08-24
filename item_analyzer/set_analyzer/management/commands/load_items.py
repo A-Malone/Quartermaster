@@ -4,7 +4,7 @@ from set_analyzer.api_interface import *
 
 from django.conf import settings
 
-import json
+import json, os
 
 class Command(BaseCommand):
     args = '<foo bar ...>'
